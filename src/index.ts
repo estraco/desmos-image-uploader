@@ -109,13 +109,14 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                     if (currentColor[3] === 255) {
                         currentWidth = (currentWidth - image[y].length) + 1;
                         if (currentX + currentWidth <= image[y].length)
-                            result.push({
-                                x: currentX,
-                                y: currentY,
-                                width: currentWidth,
-                                height: currentHeight,
-                                color: `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`
-                            });
+                            if (![256, 256, 256].every((v, i) => currentColor[i] === v))
+                                result.push({
+                                    x: currentX,
+                                    y: currentY,
+                                    width: currentWidth,
+                                    height: currentHeight,
+                                    color: `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`
+                                });
                     }
                 }
                 currentColor = image[y][x];
@@ -282,12 +283,13 @@ async function uploadImage(image: Buffer, opt: Partial<{
             fit: 'contain',
             position: 'left bottom',
             background: {
-                r: 0,
-                g: 0,
-                b: 0,
+                r: 0xff,
+                g: 0xff,
+                b: 0xff,
                 alpha: 0
             }
         })
+        .trim()
         .flatten()
         .toBuffer();
 
