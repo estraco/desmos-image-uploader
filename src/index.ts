@@ -190,9 +190,12 @@ export function compressedToExpressions(compressed: CompressedFormat, originalHe
 
         if (similar.find((x) => x.every((y) => y.color === current.color && y.opacity === current.opacity))) {
             similar.push([current]);
+
+            compressed.splice(i, 1);
+        } else {
+            similar.push([current]);
         }
     }
-
 
     for (let i = 0; i < similar.length; i++) {
         let latex = `${round(similar[i][0].x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((similar[i][0].x + similar[i][0].width) * sizeMultiplier, sizeMultiplier)}\\left\\{`;
