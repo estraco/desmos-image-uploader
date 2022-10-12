@@ -1,6 +1,6 @@
 {
     "name": "desmos-img-upload",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "",
     "main": "build/index.js",
     "scripts": {
@@ -20,5 +20,11 @@
         "lodash": "^4.17.21",
         "png-to-rgba": "^1.0.0",
         "sharp": "^0.31.1"
-    }
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/1nchhh/desmos-image-uploader.git"
+    },
+    "homepage": "https://github.com/1nchhh/desmos-image-uploader#readme",
+    "author": "1nchhh"
 }

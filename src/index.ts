@@ -292,9 +292,9 @@ async function uploadImage(image: Buffer, opt: Partial<{
 
     const compressedImage = await compressImage(simplifiedImage);
 
-    const expressions = compressedToExpressions(compressedImage, height, 0.5);
+    const expressions = compressedToExpressions(compressedImage, height, opt.sizeMultiplier || 0.1);
 
-    const result = await uploadRaw(expressions, resized);
+    const result = await uploadRaw(expressions, resized, opt.name);
 
     return result;
 }
