@@ -183,6 +183,43 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
 export function compressedToExpressions(compressed: CompressedFormat, originalHeight: number, sizeMultiplier: number): ExpressionFormat[] {
     const result: ExpressionFormat[] = [];
 
+    const similar: CompressedFormat[] = [];
+
+    for (let i = 0; i < compressed.length; i++) {
+        const current = compressed[i];
+
+        if (similar.find((x) => x.every((y) => y.color === current.color && y.opacity === current.opacity))) {
+            similar.push([current]);
+        }
+    }
+
+
+    for (let i = 0; i < similar.length; i++) {
+        let latex = `${round(similar[i][0].x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((similar[i][0].x + similar[i][0].width) * sizeMultiplier, sizeMultiplier)}\\left\\{`;
+
+        for (let j = 0; j < similar[i].length; j++) {
+            latex += `${round((originalHeight - similar[i][j].y - similar[i][j].height) * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((originalHeight - similar[i][j].y) * sizeMultiplier, sizeMultiplier)}`;
+        }
+
+        latex += '\\right\\}';
+
+        const lineOpacity = '1';
+        const fillOpacity = (Math.round((similar[i][0].opacity / 255) * 100) / 100).toString();
+        const lineWidth = '2';
+
+        result.push({
+            type: 'expression',
+            id: i,
+            color: similar[i][0].color,
+            lineOpacity,
+            fillOpacity,
+            lineWidth,
+            latex
+        });
+    }
+
+    return result;
+
     for (let i = 0; i < compressed.length; i++) {
         const { color, x, y, width, height } = compressed[i];
         const lineOpacity = '1';
