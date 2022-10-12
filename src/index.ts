@@ -284,11 +284,10 @@ async function uploadImage(image: Buffer, opt: Partial<{
                 r: 0xff,
                 g: 0xff,
                 b: 0xff,
-                alpha: 0xff
+                alpha: 1
             }
         })
         .trim()
-        .flatten()
         .toBuffer();
 
     const { rgba, height } = RGBA.PNGToRGBAArray(resized);
