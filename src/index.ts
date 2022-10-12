@@ -148,6 +148,11 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
                 continue;
             }
 
+            // round colors to the nearest 16
+            pixel[0] = Math.round(pixel[0] / 16) * 16;
+            pixel[1] = Math.round(pixel[1] / 16) * 16;
+            pixel[2] = Math.round(pixel[2] / 16) * 16;
+
             result[y].push(pixel);
         }
     }
