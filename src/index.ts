@@ -101,24 +101,22 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                 currentWidth++;
             } else {
                 if (currentWidth > 0) {
-                    if (currentColor[3] === 255) {
-                        currentWidth = (currentWidth - image[y].length) + 1;
-                        if (currentX + currentWidth <= image[y].length)
-                            if (
-                                currentColor[0] <= 240 &&
-                                currentColor[1] <= 240 &&
-                                currentColor[2] <= 240 &&
-                                currentColor[3] < 128
-                            )
-                                result.push({
-                                    x: currentX,
-                                    y: currentY,
-                                    width: currentWidth,
-                                    height: currentHeight,
-                                    color: `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`,
-                                    opacity: currentColor[3]
-                                });
-                    }
+                    currentWidth = (currentWidth - image[y].length) + 1;
+                    if (currentX + currentWidth <= image[y].length)
+                        if (
+                            currentColor[0] <= 240 &&
+                            currentColor[1] <= 240 &&
+                            currentColor[2] <= 240 &&
+                            currentColor[3] >= 128
+                        )
+                            result.push({
+                                x: currentX,
+                                y: currentY,
+                                width: currentWidth,
+                                height: currentHeight,
+                                color: `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`,
+                                opacity: currentColor[3]
+                            });
                 }
                 currentColor = image[y][x];
                 currentX = x;
