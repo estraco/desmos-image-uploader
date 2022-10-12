@@ -1,7 +1,7 @@
+import crypto from 'crypto';
+import _ from 'lodash';
 import RGBA, { RGBAarrType } from 'png-to-rgba';
 import sharp from 'sharp';
-import _ from 'lodash';
-import crypto from 'crypto';
 
 const fetch: typeof global.fetch = global.fetch || require('node-fetch');
 
@@ -25,7 +25,16 @@ export type CompressedFormat = {
 }[];
 
 export async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
-    const result: CompressedFormat = [];
+    const result: CompressedFormat = [
+        {
+            color: '#ffffff',
+            height: image.length,
+            opacity: 255,
+            width: image[0].length,
+            x: 0,
+            y: 0
+        }
+    ];
 
     let currentColor: RGBAarrType[0][0] = [0, 0, 0, 0];
     let currentX = 0;
@@ -104,9 +113,9 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                     currentWidth = (currentWidth - image[y].length) + 1;
                     if (currentX + currentWidth <= image[y].length)
                         if (
-                            // currentColor[0] <= 240 &&
-                            // currentColor[1] <= 240 &&
-                            // currentColor[2] <= 240 &&
+                            currentColor[0] <= 240 &&
+                            currentColor[1] <= 240 &&
+                            currentColor[2] <= 240 &&
                             currentColor[3] > 17
                         )
                             result.push({
@@ -286,20 +295,34 @@ async function uploadImage(image: Buffer, opt: Partial<{
     name: string;
     size: number;
 }> = {}) {
-    const resized = await sharp(image)
+    const trimmed = await sharp(image)
         .resize({
             width: opt.size,
             height: opt.size,
             fit: 'contain',
-            position: 'left bottom',
+            position: 'left bottom'
+        })
+        .flatten({
             background: {
-                r: 0xff,
-                g: 0xff,
-                b: 0xff,
-                alpha: 16 / 255
+                r: 255,
+                g: 255,
+                b: 255
             }
         })
         .trim()
+        .toBuffer({
+            resolveWithObject: true
+        });
+
+    console.log(trimmed.info);
+
+    const resized = await sharp(trimmed.data)
+        .extract({
+            height: trimmed.info.height,
+            width: trimmed.info.width + trimmed.info.trimOffsetLeft,
+            left: 0,
+            top: 0
+        })
         .toBuffer();
 
     const { rgba, height } = RGBA.PNGToRGBAArray(resized);
