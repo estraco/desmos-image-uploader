@@ -105,10 +105,10 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                         currentWidth = (currentWidth - image[y].length) + 1;
                         if (currentX + currentWidth <= image[y].length)
                             if (
-                                currentColor[0] > 240 &&
-                                currentColor[1] > 240 &&
-                                currentColor[2] > 240 &&
-                                currentColor[3] >= 128
+                                currentColor[0] <= 240 &&
+                                currentColor[1] <= 240 &&
+                                currentColor[2] <= 240 &&
+                                currentColor[3] < 128
                             )
                                 result.push({
                                     x: currentX,
