@@ -145,7 +145,7 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
             pixel[3] = pixel[3] > 127 ? 255 : 0;
 
             if (pixel[3] !== 255) {
-                result[y].push([0, 0, 0, 0]);
+                result[y].push([256, 256, 256, 255]);
                 continue;
             }
 
