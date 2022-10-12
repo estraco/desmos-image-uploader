@@ -21,16 +21,11 @@ export type CompressedFormat = {
     width: number;
     height: number;
     color: string;
+    opacity: number;
 }[];
 
 export async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
-    const result: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        color: string;
-    }[] = [];
+    const result: CompressedFormat = [];
 
     let currentColor: RGBAarrType[0][0] = [0, 0, 0, 0];
     let currentX = 0;
@@ -109,13 +104,19 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                     if (currentColor[3] === 255) {
                         currentWidth = (currentWidth - image[y].length) + 1;
                         if (currentX + currentWidth <= image[y].length)
-                            if (![256, 256, 256].every((v, i) => currentColor[i] === v))
+                            if (
+                                currentColor[0] > 240 &&
+                                currentColor[1] > 240 &&
+                                currentColor[2] > 240 &&
+                                currentColor[3] >= 128
+                            )
                                 result.push({
                                     x: currentX,
                                     y: currentY,
                                     width: currentWidth,
                                     height: currentHeight,
-                                    color: `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`
+                                    color: `rgb(${currentColor[0]}, ${currentColor[1]}, ${currentColor[2]})`,
+                                    opacity: currentColor[3]
                                 });
                     }
                 }
@@ -142,9 +143,7 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
             // bring colors down to a maximum of 16 values
             const pixel = image[y][x];
 
-            pixel[3] = pixel[3] > 127 ? 255 : 0;
-
-            if (pixel[3] !== 255) {
+            if (pixel[3] <= 127) {
                 result[y].push([256, 256, 256, 255]);
                 continue;
             }
@@ -153,6 +152,7 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
             pixel[0] = Math.round(pixel[0] / 16) * 16;
             pixel[1] = Math.round(pixel[1] / 16) * 16;
             pixel[2] = Math.round(pixel[2] / 16) * 16;
+            pixel[3] = Math.round(pixel[3] / 16) * 16;
 
             result[y].push(pixel);
         }
@@ -166,8 +166,8 @@ export function compressedToExpressions(compressed: CompressedFormat, originalHe
 
     for (let i = 0; i < compressed.length; i++) {
         const { color, x, y, width, height } = compressed[i];
-        const fillOpacity = '1';
         const lineOpacity = '1';
+        const fillOpacity = (Math.round((compressed[i].opacity / 255) * 100) / 100).toString();
         const lineWidth = '2';
 
         const exp = {
