@@ -284,7 +284,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
                 r: 0xff,
                 g: 0xff,
                 b: 0xff,
-                alpha: 0
+                alpha: 0xff
             }
         })
         .trim()
