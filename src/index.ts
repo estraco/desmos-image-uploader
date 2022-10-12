@@ -107,7 +107,7 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                             // currentColor[0] <= 240 &&
                             // currentColor[1] <= 240 &&
                             // currentColor[2] <= 240 &&
-                            currentColor[3] > 16
+                            currentColor[3] > 17
                         )
                             result.push({
                                 x: currentX,
@@ -151,6 +151,18 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
             pixel[1] = Math.round(pixel[1] / 16) * 16;
             pixel[2] = Math.round(pixel[2] / 16) * 16;
             pixel[3] = Math.round(pixel[3] / 16) * 16;
+
+            // max of 255
+            pixel[0] = Math.min(pixel[0], 255);
+            pixel[1] = Math.min(pixel[1], 255);
+            pixel[2] = Math.min(pixel[2], 255);
+            pixel[3] = Math.min(pixel[3], 255);
+
+            // min of 0
+            pixel[0] = Math.max(pixel[0], 0);
+            pixel[1] = Math.max(pixel[1], 0);
+            pixel[2] = Math.max(pixel[2], 0);
+            pixel[3] = Math.max(pixel[3], 0);
 
             result[y].push(pixel);
         }
