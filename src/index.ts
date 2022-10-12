@@ -1,4 +1,3 @@
-import fs from 'fs';
 import RGBA, { RGBAarrType } from 'png-to-rgba';
 import sharp from 'sharp';
 import _ from 'lodash';
@@ -6,9 +5,7 @@ import crypto from 'crypto';
 
 const fetch: typeof global.fetch = global.fetch || require('node-fetch');
 
-const log = fs.createWriteStream('log.txt');
-
-type ExpressionFormat = {
+export type ExpressionFormat = {
     type: string;
     id: number;
     color: string;
@@ -18,7 +15,7 @@ type ExpressionFormat = {
     lineWidth: string;
 };
 
-type CompressedFormat = {
+export type CompressedFormat = {
     x: number;
     y: number;
     width: number;
@@ -26,7 +23,7 @@ type CompressedFormat = {
     color: string;
 }[];
 
-async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
+export async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
     const result: {
         x: number;
         y: number;
@@ -111,8 +108,6 @@ async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
                 if (currentWidth > 0) {
                     if (currentColor[3] === 255) {
                         currentWidth = (currentWidth - image[y].length) + 1;
-                        console.log(`found rectangle at ${currentX} ${currentY} with width ${currentWidth} and height ${currentHeight}`);
-                        log.write(`found rectangle at ${currentX} ${currentY} with width ${currentWidth} and height ${currentHeight}\n`);
                         if (currentX + currentWidth <= image[y].length)
                             result.push({
                                 x: currentX,
@@ -136,7 +131,7 @@ async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
     return result;
 }
 
-function simplifyImage(image: RGBAarrType): RGBAarrType {
+export function simplifyImage(image: RGBAarrType): RGBAarrType {
     const result: RGBAarrType = [];
 
     for (let y = 0; y < image.length; y++) {
@@ -160,7 +155,7 @@ function simplifyImage(image: RGBAarrType): RGBAarrType {
     return result;
 }
 
-function compressedToExpressions(compressed: CompressedFormat, originalHeight: number, sizeMultiplier: number): ExpressionFormat[] {
+export function compressedToExpressions(compressed: CompressedFormat, originalHeight: number, sizeMultiplier: number): ExpressionFormat[] {
     const result: ExpressionFormat[] = [];
 
     for (let i = 0; i < compressed.length; i++) {
@@ -185,11 +180,11 @@ function compressedToExpressions(compressed: CompressedFormat, originalHeight: n
     return result;
 }
 
-function toDataURL(data: Buffer) {
+export function toDataURL(data: Buffer) {
     return `data:image/png;base64,${data.toString('base64')}`;
 }
 
-function genStr(len: number) {
+export function genStr(len: number) {
     let result = '';
     const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
     const charactersLength = characters.length;
@@ -199,7 +194,7 @@ function genStr(len: number) {
     return result;
 }
 
-async function upload(expressions: ExpressionFormat[], image: Buffer, name: string = genStr(10)) {
+export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, name: string = genStr(10)) {
     const params = new URLSearchParams();
 
     params.append('thumb_data', toDataURL(image));
@@ -229,8 +224,6 @@ async function upload(expressions: ExpressionFormat[], image: Buffer, name: stri
         params.append(key, data[key as keyof typeof data]);
     }
 
-    console.log(`Sending #bytes ${params.toString().length}`);
-
     return fetch('https://www.desmos.com/api/v1/calculator/save', {
         headers: {
             accept: 'application/json, text/javascript, */*; q=0.01',
@@ -257,10 +250,7 @@ async function upload(expressions: ExpressionFormat[], image: Buffer, name: stri
             try {
                 return JSON.parse(text);
             } catch (e) {
-                console.log('failed to parse json');
-                console.log(text);
-
-                process.exit(1);
+                throw new Error('failed to parse json');
             }
         })
         .then(res => {
@@ -275,41 +265,38 @@ function round(num: number, base: number) {
     return Math.round(num * (1 / base)) / (1 / base);
 }
 
-const image = fs.readFileSync('img.png');
+async function uploadImage(image: Buffer, opt: Partial<{
+    sizeMultiplier: number;
+    name: string;
+    size: number;
+}> = {}) {
+    const resized = await sharp(image)
+        .resize({
+            width: opt.size,
+            height: opt.size,
+            fit: 'contain',
+            position: 'left bottom',
+            background: {
+                r: 0,
+                g: 0,
+                b: 0,
+                alpha: 0
+            }
+        })
+        .flatten()
+        .toBuffer();
 
-const size = 200;
+    const { rgba, height } = RGBA.PNGToRGBAArray(resized);
 
-sharp(image)
-    .resize({
-        width: size,
-        height: size,
-        fit: 'contain',
-        position: 'left bottom',
-        background: {
-            r: 0,
-            g: 0,
-            b: 0,
-            alpha: 0
-        }
-    })
-    .flatten()
-    .toBuffer()
-    .then(async resized => {
-        const { rgba, height } = RGBA.PNGToRGBAArray(resized);
+    const simplifiedImage = simplifyImage(rgba);
 
-        const simplifiedImage = simplifyImage(rgba);
+    const compressedImage = await compressImage(simplifiedImage);
 
-        fs.writeFileSync('simplified.png', RGBA.RGBAArrayToPNG(simplifiedImage));
+    const expressions = compressedToExpressions(compressedImage, height, 0.5);
 
-        const compressedImage = await compressImage(simplifiedImage);
+    const result = await uploadRaw(expressions, resized);
 
-        const expressions = compressedToExpressions(compressedImage, height, 0.5);
+    return result;
+}
 
-        fs.writeFileSync('expressions.json', JSON.stringify(expressions, null, 4));
-
-        const result = await upload(expressions, resized);
-
-        console.log(result);
-
-        process.exit(0);
-    });
+export default uploadImage;
