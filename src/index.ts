@@ -107,7 +107,7 @@ export async function compressImage(image: RGBAarrType): Promise<CompressedForma
                             currentColor[0] <= 240 &&
                             currentColor[1] <= 240 &&
                             currentColor[2] <= 240 &&
-                            currentColor[3] >= 128
+                            currentColor[3] > 16
                         )
                             result.push({
                                 x: currentX,
@@ -141,10 +141,10 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
             // bring colors down to a maximum of 16 values
             const pixel = image[y][x];
 
-            if (pixel[3] <= 127) {
-                result[y].push([256, 256, 256, 255]);
-                continue;
-            }
+            // if (pixel[3] <= 127) {
+            //     result[y].push([256, 256, 256, 255]);
+            //     continue;
+            // }
 
             // round colors to the nearest 16
             pixel[0] = Math.round(pixel[0] / 16) * 16;
@@ -284,7 +284,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
                 r: 0xff,
                 g: 0xff,
                 b: 0xff,
-                alpha: 1
+                alpha: 16 / 255
             }
         })
         .trim()
