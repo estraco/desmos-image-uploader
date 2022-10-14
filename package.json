@@ -1,6 +1,6 @@
 {
     "name": "desmos-img-upload",
-    "version": "1.0.16",
+    "version": "1.0.17",
     "description": "",
     "main": "build/index.js",
     "scripts": {

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import _ from 'lodash';
 import RGBA, { RGBAarrType } from 'png-to-rgba';
 import sharp from 'sharp';
+import fs from 'fs';
 
 const fetch: typeof global.fetch = global.fetch || require('node-fetch');
 
@@ -183,46 +184,6 @@ export function simplifyImage(image: RGBAarrType): RGBAarrType {
 export function compressedToExpressions(compressed: CompressedFormat, originalHeight: number, sizeMultiplier: number): ExpressionFormat[] {
     const result: ExpressionFormat[] = [];
 
-    const similar: CompressedFormat[] = [];
-
-    for (let i = 0; i < compressed.length; i++) {
-        const current = compressed[i];
-
-        if (similar.find((x) => x.every((y) => y.color === current.color && y.opacity === current.opacity))) {
-            similar.push([current]);
-
-            compressed.splice(i, 1);
-        } else {
-            similar.push([current]);
-        }
-    }
-
-    for (let i = 0; i < similar.length; i++) {
-        let latex = `${round(similar[i][0].x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((similar[i][0].x + similar[i][0].width) * sizeMultiplier, sizeMultiplier)}\\left\\{`;
-
-        for (let j = 0; j < similar[i].length; j++) {
-            latex += `${round((originalHeight - similar[i][j].y - similar[i][j].height) * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((originalHeight - similar[i][j].y) * sizeMultiplier, sizeMultiplier)}`;
-        }
-
-        latex += '\\right\\}';
-
-        const lineOpacity = '1';
-        const fillOpacity = (Math.round((similar[i][0].opacity / 255) * 100) / 100).toString();
-        const lineWidth = '2';
-
-        result.push({
-            type: 'expression',
-            id: i,
-            color: similar[i][0].color,
-            lineOpacity,
-            fillOpacity,
-            lineWidth,
-            latex
-        });
-    }
-
-    return result;
-
     for (let i = 0; i < compressed.length; i++) {
         const { color, x, y, width, height } = compressed[i];
         const lineOpacity = '1';
@@ -234,6 +195,181 @@ export function compressedToExpressions(compressed: CompressedFormat, originalHe
             id: i,
             color,
             latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round((originalHeight - y - height) * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((originalHeight - y) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
+            fillOpacity,
+            lineOpacity,
+            lineWidth
+        };
+
+        result.push(exp);
+    }
+
+    return result;
+}
+
+export function RGBAarrTypeToExpressions(image: RGBAarrType): ExpressionFormat[] {
+    const result: ExpressionFormat[] = [];
+
+    for (let y = 0; y < image.length; y++) {
+        for (let x = 0; x < image[y].length; x++) {
+            const pixel = image[y][x];
+            const lineOpacity = '1';
+            const fillOpacity = (Math.round((pixel[3] / 255) * 100) / 100).toString();
+            const lineWidth = '2';
+
+            const exp = {
+                type: 'expression',
+                id: result.length,
+                color: `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`,
+                latex: `${y}\\le x\\le${y + 1}\\left\\{${x}\\le y\\le${x + 1}\\right\\}`,
+                fillOpacity,
+                lineOpacity,
+                lineWidth
+            };
+
+            result.push(exp);
+        }
+    }
+
+    return result;
+}
+
+export function copyArray(input: RGBAarrType) {
+    const result = [];
+    for (const row of input) {
+        result.push(row.slice());
+    }
+    return result;
+}
+
+export function findVerticalRect(input: RGBAarrType, x: number, y: number, width: number) {
+    const value = input[y][x];
+    let height = 0;
+
+    if (x + width > input[y].length) {
+        return 0;
+    }
+
+    while (y + height < input.length) {
+        for (let i = 0; i < width; i++) {
+            if (!_.isEqual(input[y + height][x + i], value)) {
+                return height;
+            }
+        }
+        height++;
+    }
+    return height;
+}
+
+export function findHorizontalRect(input: RGBAarrType, x: number, y: number, height: number) {
+    const value = input[y][x];
+    let width = 0;
+
+    if (y + height > input.length) {
+        return 0;
+    }
+
+    while (x + width < input[y].length) {
+        for (let i = 0; i < height; i++) {
+            if (!_.isEqual(input[y + i][x + width], value)) {
+                return width;
+            }
+        }
+        width++;
+    }
+
+    return width;
+}
+
+export function combine(_input: RGBAarrType) {
+    const input = copyArray(_input);
+
+    const result: { x: number, y: number, width: number, height: number, value: [number, number, number, number] }[] = [];
+
+    for (let y = 0; y < input.length; y++) {
+        for (let x = 0; x < input[y].length; x++) {
+            const value = input[y][x];
+            if (value === null) {
+                continue;
+            }
+
+            let width = 0;
+
+            while (width + x < input[y].length) {
+                const height = findVerticalRect(input, x, y, width + 1);
+
+                if (height === 0) {
+                    break;
+                }
+
+                for (let i = 0; i < height; i++) {
+                    const w = findHorizontalRect(input, x, y + i, height);
+
+                    if (w === 0) {
+                        break;
+                    }
+
+                    if (w > width) {
+                        width = w;
+                    }
+                }
+
+                if (width === 0) {
+                    break;
+                }
+
+                result.push({
+                    x,
+                    y,
+                    width,
+                    height,
+                    value
+                });
+
+                for (let i = 0; i < height; i++) {
+                    for (let j = 0; j < width; j++) {
+                        input[y + i][x + j] = null;
+                    }
+                }
+
+                x += width - 1;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+export function combinationCompressionToExpressions(original: RGBAarrType, sizeMultiplier: number) {
+    const compressed = combine(original);
+    const result: ExpressionFormat[] = [
+        {
+            type: 'expression',
+            id: 0,
+            color: 'rgb(255, 255, 255)',
+            latex: `0\\le x\\le${original[0].length * sizeMultiplier}\\left\\{0\\le y\\le${original.length * sizeMultiplier}\\right\\}`,
+            fillOpacity: '1',
+            lineOpacity: '1',
+            lineWidth: '2'
+        }
+    ];
+
+    for (let i = 0; i < compressed.length; i++) {
+        const { value, x, y, width, height } = compressed[i];
+
+        if (value.every(v => v === 0 || v === 255)) {
+            continue;
+        }
+
+        const lineOpacity = '1';
+        const fillOpacity = (Math.round((value[3] / 255) * 100) / 100).toString();
+        const lineWidth = '2';
+
+        const exp = {
+            type: 'expression',
+            id: i + 1,
+            color: `rgb(${value[0]}, ${value[1]}, ${value[2]})`,
+            latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round(y * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((y + height) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
             fillOpacity,
             lineOpacity,
             lineWidth
@@ -365,13 +501,17 @@ async function uploadImage(image: Buffer, opt: Partial<{
         })
         .toBuffer();
 
-    const { rgba, height } = RGBA.PNGToRGBAArray(resized);
+    const { rgba } = RGBA.PNGToRGBAArray(resized);
 
     const simplifiedImage = simplifyImage(rgba);
 
-    const compressedImage = await compressImage(simplifiedImage);
+    // const compressedImage = await compressImage(simplifiedImage);
 
-    const expressions = compressedToExpressions(compressedImage, height, opt.sizeMultiplier || 0.1);
+    // const expressions = compressedToExpressions(compressedImage, height, opt.sizeMultiplier || 0.1);
+
+    const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
+
+    fs.writeFileSync('test.json', JSON.stringify(expressions, null, 4));
 
     const result = await uploadRaw(expressions, resized, opt.name);
 
