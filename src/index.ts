@@ -1,18 +1,19 @@
+import axios from 'axios';
 import crypto from 'crypto';
 import _ from 'lodash';
 import RGBA, { RGBAarrType } from 'png-to-rgba';
 import sharp from 'sharp';
-
-const fetch: typeof global.fetch = global.fetch || require('node-fetch');
+import ColorManager from './colors';
 
 export type ExpressionFormat = {
     type: string;
     id: number;
-    color: string;
+    color?: string;
     latex: string;
-    fillOpacity: string;
-    lineOpacity: string;
-    lineWidth: string;
+    fillOpacity?: string;
+    lineOpacity?: string;
+    lineWidth?: string;
+    colorLatex?: string;
 };
 
 export type CompressedFormat = {
@@ -342,17 +343,24 @@ export function combine(_input: RGBAarrType) {
 export function combinationCompressionToExpressions(original: RGBAarrType, sizeMultiplier: number) {
     const compressed = combine(original);
 
+    const manager = new ColorManager();
+
     const maxWidth = Math.max(...original.map(row => row.length));
 
     const result: ExpressionFormat[] = [
         {
             type: 'expression',
             id: 0,
-            color: 'rgb(255, 255, 255)',
+            // color: 'rgb(255, 255, 255)',
             latex: `0\\le x\\le${maxWidth * sizeMultiplier}\\left\\{0\\le y\\le${original.length * sizeMultiplier}\\right\\}`,
             fillOpacity: '1',
             lineOpacity: '1',
-            lineWidth: '2'
+            lineWidth: '2',
+            colorLatex: manager.color({
+                r: 255,
+                g: 255,
+                b: 255
+            })
         }
     ];
 
@@ -370,15 +378,21 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
         const exp = {
             type: 'expression',
             id: i + 1,
-            color: `rgb(${value[0]}, ${value[1]}, ${value[2]})`,
             latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round(y * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((y + height) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
             fillOpacity,
             lineOpacity,
-            lineWidth
+            lineWidth,
+            colorLatex: manager.color({
+                r: value[0],
+                g: value[1],
+                b: value[2]
+            })
         };
 
         result.push(exp);
     }
+
+    result.push(...manager.getExpressions(result.length));
 
     return result;
 }
@@ -400,7 +414,10 @@ export function genStr(len: number) {
 export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, height: number, multiplier: number, name: string = genStr(10)) {
     const params = new URLSearchParams();
 
-    params.append('thumb_data', toDataURL(image));
+    params.append('thumb_data', toDataURL(await sharp(image).rotate(180).toBuffer()));
+
+    console.log(image.length);
+
     const data = {
         calc_state: JSON.stringify({
             version: 9,
@@ -408,9 +425,9 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
             graph: {
                 viewport: {
                     xmin: -(height / 10) * multiplier,
-                    ymin: 170 / 100 * (-(height / 10)) * multiplier,
+                    ymin: (-(height / 10)) * multiplier,
                     xmax: height * 1.1 * multiplier,
-                    ymax: 170 / 100 * (height * 1.1) * multiplier
+                    ymax: (height * 1.1) * multiplier
                 }
             },
             expressions: {
@@ -427,7 +444,8 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
         params.append(key, data[key as keyof typeof data]);
     }
 
-    return fetch('https://www.desmos.com/api/v1/calculator/save', {
+    return axios({
+        url: 'https://www.desmos.com/api/v1/calculator/save',
         headers: {
             accept: 'application/json, text/javascript, */*; q=0.01',
             'accept-language': 'en-US,en;q=0.9',
@@ -444,23 +462,25 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
             Referer: 'https://www.desmos.com/calculator',
             'Referrer-Policy': 'strict-origin-when-cross-origin'
         },
-        body: params.toString(),
+        data: params.toString(),
         method: 'POST'
     })
-        .then(async res => {
-            const text = await res.text();
 
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                throw new Error('failed to parse json');
-            }
-        })
         .then(res => {
-            res.url = `https://desmos.com/calculator/${res.hash}`;
-            res.length = params.toString().length;
+            res.data.url = `https://desmos.com/calculator/${res.data.hash}`;
+            res.data.length = params.toString().length;
 
-            return res;
+            return res.data;
+        })
+        .catch(e => {
+            throw new Error('failed to upload', {
+                cause: {
+                    e,
+                    text: e.response?.data,
+                    payload: e.response?.request._header + e.response?.request._data,
+                    paramsLength: params.toString().length
+                }
+            });
         });
 }
 
@@ -478,7 +498,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
         .resize({
             width: opt.size,
             height: opt.size,
-            fit: 'contain',
+            fit: 'inside',
             position: 'left bottom'
         })
         .flatten({
@@ -498,7 +518,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
     const resized = await sharp(trimmed.data)
         .extract({
             height: trimmed.info.height,
-            width: trimmed.info.width + trimmed.info.trimOffsetLeft,
+            width: trimmed.info.width, // + trimmed.info.trimOffsetLeft,
             left: 0,
             top: 0
         })
@@ -509,8 +529,6 @@ async function uploadImage(image: Buffer, opt: Partial<{
     const simplifiedImage = simplifyImage(rgba);
 
     const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
-
-    // return fs.promises.writeFile('test.json', JSON.stringify(expressions));
 
     const result = await uploadRaw(expressions, resized, height, opt.sizeMultiplier || 0.1, opt.name);
 

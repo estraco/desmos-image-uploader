@@ -4,6 +4,8 @@ import fs from 'fs';
 const file = fs.readFileSync('img.png');
 
 upload(file, {
-    size: 400,
+    size: 100,
     sizeMultiplier: 0.1
-}).then(console.log).catch(console.error);
+}).then(console.log).catch(e => {
+    console.error(e);
+});
