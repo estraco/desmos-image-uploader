@@ -357,7 +357,7 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
     for (let i = 0; i < compressed.length; i++) {
         const { value, x, y, width, height } = compressed[i];
 
-        if (value.every(v => v === 0 || v === 255)) {
+        if (value.every(v => v === 255)) {
             continue;
         }
 
@@ -369,7 +369,7 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
             type: 'expression',
             id: i + 1,
             color: `rgb(${value[0]}, ${value[1]}, ${value[2]})`,
-            latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round(y * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((y + height) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
+            latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round((original.length - y) * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((original.length - (y + height)) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
             fillOpacity,
             lineOpacity,
             lineWidth
