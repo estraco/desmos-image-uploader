@@ -1,6 +1,6 @@
 {
     "name": "desmos-img-upload",
-    "version": "1.0.24",
+    "version": "1.0.26",
     "description": "",
     "main": "build/index.js",
     "scripts": {
@@ -19,7 +19,6 @@
     "dependencies": {
         "axios": "^1.1.2",
         "lodash": "^4.17.21",
-        "node-fetch": "^2.6.7",
         "png-to-rgba": "^1.0.0",
         "sharp": "^0.31.1"
     },

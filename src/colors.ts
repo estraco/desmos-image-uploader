@@ -1,6 +1,6 @@
 class ColorManager {
     colors: {
-        [key: string]: string;
+        [key: string]: { cs: string, id: string };
     };
 
     constructor() {
@@ -10,19 +10,22 @@ class ColorManager {
     color(color: { r: number, g: number, b: number }) {
         const colorString = `c_{${Object.keys(this.colors).length + 1}}=\\operatorname{rgb}\\left(${color.r},${color.g},${color.b}\\right)`;
 
-        if (!this.colors[colorString]) {
-            this.colors[colorString] = `c_{${Object.keys(this.colors).length + 1}}`;
+        if (!this.colors[`rgb(${color.r},${color.g},${color.b})`]) {
+            this.colors[`rgb(${color.r},${color.g},${color.b})`] = {
+                cs: colorString,
+                id: `c_{${Object.keys(this.colors).length + 1}}`
+            };
         }
 
-        return this.colors[colorString];
+        return this.colors[`rgb(${color.r},${color.g},${color.b})`].id;
     }
 
     getExpressions(startingIndex = 1) {
-        return Object.keys(this.colors).map((color, index) => ({
+        return Object.entries(this.colors).map(([, { cs }], index) => ({
             type: 'expression',
             id: index + startingIndex,
             color: '',
-            latex: color
+            latex: cs
         }));
     }
 }

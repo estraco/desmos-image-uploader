@@ -547,6 +547,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
     sizeMultiplier: number;
     name: string;
     size: number;
+    simplify: boolean;
 }> = {}) {
     const trimmed = await sharp(image)
         .rotate(180)
@@ -564,6 +565,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
             }
         })
         .trim()
+        .flop()
         .toBuffer({
             resolveWithObject: true
         });
@@ -571,7 +573,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
     const resized = await sharp(trimmed.data)
         .extract({
             height: trimmed.info.height,
-            width: trimmed.info.width, // + trimmed.info.trimOffsetLeft,
+            width: trimmed.info.width,
             left: 0,
             top: 0
         })
@@ -579,7 +581,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
 
     const { rgba, width, height } = RGBA.PNGToRGBAArray(resized);
 
-    const simplifiedImage = simplifyImage(rgba);
+    const simplifiedImage = opt.simplify ? simplifyImage(rgba) : rgba;
 
     const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
 
