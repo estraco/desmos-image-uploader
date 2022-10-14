@@ -341,12 +341,15 @@ export function combine(_input: RGBAarrType) {
 
 export function combinationCompressionToExpressions(original: RGBAarrType, sizeMultiplier: number) {
     const compressed = combine(original);
+
+    const maxWidth = Math.max(...original.map(row => row.length));
+
     const result: ExpressionFormat[] = [
         {
             type: 'expression',
             id: 0,
             color: 'rgb(255, 255, 255)',
-            latex: `0\\le x\\le${original[0].length * sizeMultiplier}\\left\\{0\\le y\\le${original.length * sizeMultiplier}\\right\\}`,
+            latex: `0\\le x\\le${maxWidth * sizeMultiplier}\\left\\{0\\le y\\le${original.length * sizeMultiplier}\\right\\}`,
             fillOpacity: '1',
             lineOpacity: '1',
             lineWidth: '2'
@@ -356,7 +359,7 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
     for (let i = 0; i < compressed.length; i++) {
         const { value, x, y, width, height } = compressed[i];
 
-        if (value.every(v => v === 255)) {
+        if (value.slice(0, 3).every(v => v === 255)) {
             continue;
         }
 
@@ -368,7 +371,7 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
             type: 'expression',
             id: i + 1,
             color: `rgb(${value[0]}, ${value[1]}, ${value[2]})`,
-            latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round((original.length - y) * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((original.length - (y + height)) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
+            latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round(y * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((y + height) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
             fillOpacity,
             lineOpacity,
             lineWidth
@@ -394,7 +397,7 @@ export function genStr(len: number) {
     return result;
 }
 
-export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, name: string = genStr(10)) {
+export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, height: number, name: string = genStr(10)) {
     const params = new URLSearchParams();
 
     params.append('thumb_data', toDataURL(image));
@@ -404,10 +407,10 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
             randomSeed: crypto.randomBytes(16).toString('hex'),
             graph: {
                 viewport: {
-                    xmin: -100,
-                    ymin: -170.8882725832012,
-                    xmax: 100,
-                    ymax: 170.8882725832012
+                    xmin: -(height / 10),
+                    ymin: 170 / 100 * (-(height / 10)),
+                    xmax: height * 1.1,
+                    ymax: 170 / 100 * (height * 1.1)
                 }
             },
             expressions: {
@@ -498,9 +501,10 @@ async function uploadImage(image: Buffer, opt: Partial<{
             left: 0,
             top: 0
         })
+        .rotate(180)
         .toBuffer();
 
-    const { rgba } = RGBA.PNGToRGBAArray(resized);
+    const { rgba, height } = RGBA.PNGToRGBAArray(resized);
 
     const simplifiedImage = simplifyImage(rgba);
 
@@ -510,7 +514,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
 
     const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
 
-    const result = await uploadRaw(expressions, resized, opt.name);
+    const result = await uploadRaw(expressions, resized, height, opt.name);
 
     return result;
 }
