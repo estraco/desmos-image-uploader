@@ -28,7 +28,7 @@ export type CompressedFormat = {
 export async function compressImage(image: RGBAarrType): Promise<CompressedFormat> {
     const result: CompressedFormat = [
         {
-            color: '#ffffff',
+            color: '#fff',
             height: image.length,
             opacity: 255,
             width: image[0].length,
@@ -351,7 +351,6 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
         {
             type: 'expression',
             id: 0,
-            // color: 'rgb(255, 255, 255)',
             latex: `0\\le x\\le${maxWidth * sizeMultiplier}\\left\\{0\\le y\\le${original.length * sizeMultiplier}\\right\\}`,
             fillOpacity: '1',
             lineOpacity: '1',
@@ -411,7 +410,7 @@ export function genStr(len: number) {
     return result;
 }
 
-export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, height: number, multiplier: number, name: string = genStr(10)) {
+export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, width: number, height: number, multiplier: number, name: string = genStr(10)) {
     const params = new URLSearchParams();
 
     params.append('thumb_data', toDataURL(await sharp(image).rotate(180).toBuffer()));
@@ -424,10 +423,10 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
             randomSeed: crypto.randomBytes(16).toString('hex'),
             graph: {
                 viewport: {
-                    xmin: -(height / 10) * multiplier,
-                    ymin: (-(height / 10)) * multiplier,
-                    xmax: height * 1.1 * multiplier,
-                    ymax: (height * 1.1) * multiplier
+                    xmin: 1.7 * -width * multiplier * 0.1,
+                    xmax: 1.7 * width * multiplier * 1.1,
+                    ymin: -height * multiplier * 0.1,
+                    ymax: height * multiplier * 1.1
                 }
             },
             expressions: {
@@ -524,13 +523,13 @@ async function uploadImage(image: Buffer, opt: Partial<{
         })
         .toBuffer();
 
-    const { rgba, height } = RGBA.PNGToRGBAArray(resized);
+    const { rgba, width, height } = RGBA.PNGToRGBAArray(resized);
 
     const simplifiedImage = simplifyImage(rgba);
 
     const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
 
-    const result = await uploadRaw(expressions, resized, height, opt.sizeMultiplier || 0.1, opt.name);
+    const result = await uploadRaw(expressions, resized, width, height, opt.sizeMultiplier || 0.1, opt.name);
 
     return result;
 }
