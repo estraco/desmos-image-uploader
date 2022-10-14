@@ -2,7 +2,6 @@ import crypto from 'crypto';
 import _ from 'lodash';
 import RGBA, { RGBAarrType } from 'png-to-rgba';
 import sharp from 'sharp';
-import fs from 'fs';
 
 const fetch: typeof global.fetch = global.fetch || require('node-fetch');
 
@@ -510,8 +509,6 @@ async function uploadImage(image: Buffer, opt: Partial<{
     // const expressions = compressedToExpressions(compressedImage, height, opt.sizeMultiplier || 0.1);
 
     const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
-
-    fs.writeFileSync('test.json', JSON.stringify(expressions, null, 4));
 
     const result = await uploadRaw(expressions, resized, opt.name);
 
