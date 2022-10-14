@@ -397,7 +397,7 @@ export function genStr(len: number) {
     return result;
 }
 
-export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, height: number, name: string = genStr(10)) {
+export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, height: number, multiplier: number, name: string = genStr(10)) {
     const params = new URLSearchParams();
 
     params.append('thumb_data', toDataURL(image));
@@ -407,10 +407,10 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
             randomSeed: crypto.randomBytes(16).toString('hex'),
             graph: {
                 viewport: {
-                    xmin: -(height / 10),
-                    ymin: 170 / 100 * (-(height / 10)),
-                    xmax: height * 1.1,
-                    ymax: 170 / 100 * (height * 1.1)
+                    xmin: -(height / 10) * multiplier,
+                    ymin: 170 / 100 * (-(height / 10)) * multiplier,
+                    xmax: height * 1.1 * multiplier,
+                    ymax: 170 / 100 * (height * 1.1) * multiplier
                 }
             },
             expressions: {
@@ -474,6 +474,7 @@ async function uploadImage(image: Buffer, opt: Partial<{
     size: number;
 }> = {}) {
     const trimmed = await sharp(image)
+        .rotate(180)
         .resize({
             width: opt.size,
             height: opt.size,
@@ -501,20 +502,17 @@ async function uploadImage(image: Buffer, opt: Partial<{
             left: 0,
             top: 0
         })
-        .rotate(180)
         .toBuffer();
 
     const { rgba, height } = RGBA.PNGToRGBAArray(resized);
 
     const simplifiedImage = simplifyImage(rgba);
 
-    // const compressedImage = await compressImage(simplifiedImage);
-
-    // const expressions = compressedToExpressions(compressedImage, height, opt.sizeMultiplier || 0.1);
-
     const expressions = combinationCompressionToExpressions(simplifiedImage, opt.sizeMultiplier || 0.1);
 
-    const result = await uploadRaw(expressions, resized, height, opt.name);
+    // return fs.promises.writeFile('test.json', JSON.stringify(expressions));
+
+    const result = await uploadRaw(expressions, resized, height, opt.sizeMultiplier || 0.1, opt.name);
 
     return result;
 }
