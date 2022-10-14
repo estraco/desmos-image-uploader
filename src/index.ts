@@ -340,7 +340,7 @@ export function combine(_input: RGBAarrType) {
     return result;
 }
 
-export function combinationCompressionToExpressions(original: RGBAarrType, sizeMultiplier: number) {
+export function combinationCompressionToExpressions_ColorManager(original: RGBAarrType, sizeMultiplier: number) {
     const compressed = combine(original);
 
     const manager = new ColorManager();
@@ -396,6 +396,64 @@ export function combinationCompressionToExpressions(original: RGBAarrType, sizeM
     return result;
 }
 
+export function combinationCompressionToExpressions_RGB(original: RGBAarrType, sizeMultiplier: number) {
+    const compressed = combine(original);
+
+    const maxWidth = Math.max(...original.map(row => row.length));
+
+    const result: ExpressionFormat[] = [
+        {
+            type: 'expression',
+            id: 0,
+            latex: `0\\le x\\le${maxWidth * sizeMultiplier}\\left\\{0\\le y\\le${original.length * sizeMultiplier}\\right\\}`,
+            fillOpacity: '1',
+            lineOpacity: '1',
+            lineWidth: '2',
+            color: '#fff'
+        }
+    ];
+
+    for (let i = 0; i < compressed.length; i++) {
+        const { value, x, y, width, height } = compressed[i];
+
+        if (value.slice(0, 3).every(v => v === 255)) {
+            continue;
+        }
+
+        const lineOpacity = '1';
+        const fillOpacity = (Math.round((value[3] / 255) * 100) / 100).toString();
+        const lineWidth = '2';
+
+        const exp = {
+            type: 'expression',
+            id: i + 1,
+            latex: `${round(x * sizeMultiplier, sizeMultiplier)}\\le x\\le${round((x + width) * sizeMultiplier, sizeMultiplier)}\\left\\{${round(y * sizeMultiplier, sizeMultiplier)}\\le y\\le${round((y + height) * sizeMultiplier, sizeMultiplier)}\\right\\}`,
+            fillOpacity,
+            lineOpacity,
+            lineWidth,
+            color: `#${value.slice(0, 3).map(v => v.toString(16).padStart(2, '0')).join('')}`
+        };
+
+        result.push(exp);
+    }
+
+    return result;
+}
+
+export function combinationCompressionToExpressions(original: RGBAarrType, sizeMultiplier: number) {
+    const cm = combinationCompressionToExpressions_ColorManager(original, sizeMultiplier);
+    const rgb = combinationCompressionToExpressions_RGB(original, sizeMultiplier);
+
+    const cmLen = JSON.stringify(cm).length;
+    const rgbLen = JSON.stringify(rgb).length;
+
+    if (cmLen < rgbLen) {
+        return cm;
+    } else {
+        return rgb;
+    }
+}
+
 export function toDataURL(data: Buffer) {
     return `data:image/png;base64,${data.toString('base64')}`;
 }
@@ -414,8 +472,6 @@ export async function uploadRaw(expressions: ExpressionFormat[], image: Buffer, 
     const params = new URLSearchParams();
 
     params.append('thumb_data', toDataURL(await sharp(image).rotate(180).toBuffer()));
-
-    console.log(image.length);
 
     const data = {
         calc_state: JSON.stringify({
@@ -511,8 +567,6 @@ async function uploadImage(image: Buffer, opt: Partial<{
         .toBuffer({
             resolveWithObject: true
         });
-
-    console.log(trimmed.info);
 
     const resized = await sharp(trimmed.data)
         .extract({
